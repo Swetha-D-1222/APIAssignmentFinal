@@ -5,6 +5,7 @@ import addToCartRequestPojo.AtcData;
 import addToCartRequestPojo.ItemsItem;
 import addToCartResponsePojo.AddToCartResponse;
 import checkOutApiRequest.CheckOutRequest;
+import checkOutApiResponse.CheckOutResponse;
 import io.cucumber.core.internal.com.fasterxml.jackson.core.JsonProcessingException;
 import io.cucumber.core.internal.com.fasterxml.jackson.databind.ObjectMapper;
 import io.cucumber.cucumberexpressions.Group;
@@ -43,6 +44,7 @@ public class restAssuredAutomation
     static AddToCartResponse addToCartResponse;
     static ProductsItem productsItem;
     static CheckOutRequest checkOutRequest = new CheckOutRequest();
+    static CheckOutResponse checkOutResponse;
     static DataItem dataItem = new DataItem();
     static Map<Integer, Object> requestMap = new HashMap<>();
     ObjectMapper obj = new ObjectMapper();
@@ -61,7 +63,6 @@ public class restAssuredAutomation
         requestBody = obj.writeValueAsString(storeApiRequest);
         response = requestSpecification.body(requestBody).request(Method.POST, "/backend/store-picker/api/store/nearBy");
         response.prettyPrint();
-        storeApiResponse = obj.readValue(response.asString(), StoreApiResponse.class);
         storeApiResponse = response.getBody().as(StoreApiResponse.class);
     }
 
@@ -137,31 +138,37 @@ public class restAssuredAutomation
 
     @When("The user gives longitude and latitude {string},{string} for checkout")
     public void theUserGivesLongitudeAndLatitudeForCheckout(String longitude, String latitude) throws JsonProcessingException {
-        System.out.println(addToCartResponse.getStatus());
+//        System.out.println(addToCartResponse.getStatus());
         checkOutRequest.setLatitude(latitude);
         checkOutRequest.setLongitude(longitude);
         requestBody = obj.writeValueAsString(checkOutRequest);
         response = requestSpecification
                 .header("Host", "wwwuatb.gdn-app.com")
                 .header("Accept", "application/json")
-//                .header("Authorization", "Bearer AT-B7DFA924-9CEB-4755-9ACC-65A4F06F13EA")
                 .header("Blibli-Session-Id", "1faef5f5-c5e4-47f1-96ea-92861f23495b--08156234234")
                 .header("Accept-Language", "en-GB,en-US;q=0.9,en;q=0.8")
                 .header("Accept-Encoding", "gzip, deflate, br")
                 .header("Content-Type", "application/json")
                 .header("Blibli-User-Id", "6f127adb-adc9-4d8c-814b-86144c39a248%40blibli")
-                .header("User-Agent","Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Mobile Safari/537.36")
+                .header("User-Agent","BlibliAndroid/12.0.0(66746) 03d5379a-bc16-4a62-87ec-bbe42e3e3020 Dalvik/2.1.0 (Linux; U; Android 13; SM-G781B Build/TP1A.220624.014)")
                 .header("Connection", "keep-alive")
+                .header("x-userId","E6BD2F08-F7B4-4EAD-B667-583E5C893110")
+                .header("x-sessionId","4F9EFA07-4AA0-40BC-ACB1-AB62E24B0495")
+                .header("x-requestId","6A0BDFBA-95A2-44A6-95B5-707EE4202EE7-99182-00053DF72A1FD397")
+                .header("Authorization", "bearer AT-366AF0E4-34D1-4F11-B9EE-DA4E6BB12576")
                 .body(requestBody)
                 .queryParam("sellerGroup", storeApiResponse.getData().get(0).getGroupName())
                 .request(Method.POST, "/backend/retail/checkouts/_summary");
-
+        checkOutResponse = obj.readValue(response.asString(), CheckOutResponse.class);
         response.prettyPrint();
+
+
     }
 
     @Then("The response is validated for checkout")
     public void theResponseIsValidatedForCheckout()
     {
+        Assert.assertEquals(addToCartResponse.getData().getCartItems().get(0).getProductSku(),checkOutResponse.getData().getCartItems().get(0).getProductSku(),"ProductSku's not equal");
         Assert.assertEquals(response.getStatusCode(),200,"Expected result not found");
     }
 
@@ -169,9 +176,23 @@ public class restAssuredAutomation
     @When("The user clicks of the payment button and pays the amount for the product {string}")
     public void theUserClicksOfThePaymentButtonAndPaysTheAmountForTheProduct(String productId)
     {
+        System.out.println(checkOutResponse.getData().getId());
         response = requestSpecification
+                .header("Host", "wwwuatb.gdn-app.com")
+                .header("Accept", "application/json")
+                .header("Blibli-Session-Id", "1faef5f5-c5e4-47f1-96ea-92861f23495b--08156234234")
+                .header("Accept-Language", "en-GB,en-US;q=0.9,en;q=0.8")
+                .header("Accept-Encoding", "gzip, deflate, br")
+                .header("Content-Type", "application/json")
+                .header("Blibli-User-Id", "6f127adb-adc9-4d8c-814b-86144c39a248%40blibli")
+                .header("User-Agent","BlibliAndroid/12.0.0(66746) 03d5379a-bc16-4a62-87ec-bbe42e3e3020 Dalvik/2.1.0 (Linux; U; Android 13; SM-G781B Build/TP1A.220624.014)")
+                .header("Connection", "keep-alive")
+                .header("x-userId","E6BD2F08-F7B4-4EAD-B667-583E5C893110")
+                .header("x-sessionId","4F9EFA07-4AA0-40BC-ACB1-AB62E24B0495")
+                .header("x-requestId","6A0BDFBA-95A2-44A6-95B5-707EE4202EE7-99182-00053DF72A1FD397")
+                .header("Authorization", "bearer AT-366AF0E4-34D1-4F11-B9EE-DA4E6BB12576")
                 .queryParam("sellerGroup", storeApiResponse.getData().get(0).getGroupName())
-                .request(Method.GET, "/backend/retail/checkouts/" + productId + "/payments");
+                .request(Method.POST, "/backend/retail/checkouts/"+checkOutResponse.getData().getId()+"/payments/_generate");
         response.prettyPrint();
     }
 
@@ -182,12 +203,23 @@ public class restAssuredAutomation
     }
 
 
-    @When("The user completes the payment")
-    public void theUserCompletesThePayment()
+    @When("The user completes the payment {string}")
+    public void theUserCompletesThePayment(String orderId)
     {
-        long orderId=0;
         response = requestSpecification
-                .queryParam("sellerGroup", storeApiResponse.getData().get(0).getGroupName())
+                .header("Host", "wwwuatb.gdn-app.com")
+                .header("Accept", "application/json")
+                .header("Blibli-Session-Id", "1faef5f5-c5e4-47f1-96ea-92861f23495b--08156234234")
+                .header("Accept-Language", "en-GB,en-US;q=0.9,en;q=0.8")
+                .header("Accept-Encoding", "gzip, deflate, br")
+                .header("Content-Type", "application/json")
+                .header("Blibli-User-Id", "6f127adb-adc9-4d8c-814b-86144c39a248%40blibli")
+                .header("User-Agent","BlibliAndroid/12.0.0(66746) 03d5379a-bc16-4a62-87ec-bbe42e3e3020 Dalvik/2.1.0 (Linux; U; Android 13; SM-G781B Build/TP1A.220624.014)")
+                .header("Connection", "keep-alive")
+                .header("x-userId","E6BD2F08-F7B4-4EAD-B667-583E5C893110")
+                .header("x-sessionId","4F9EFA07-4AA0-40BC-ACB1-AB62E24B0495")
+                .header("x-requestId","6A0BDFBA-95A2-44A6-95B5-707EE4202EE7-99182-00053DF72A1FD397")
+                .header("Authorization", "bearer AT-366AF0E4-34D1-4F11-B9EE-DA4E6BB12576")
                 .request(Method.GET, "/backend/retail/orders/"+orderId);
         response.prettyPrint();
     }
@@ -197,4 +229,5 @@ public class restAssuredAutomation
     {
         Assert.assertEquals(response.getStatusCode(),200,"Order placement not successfull!");
     }
+
 }

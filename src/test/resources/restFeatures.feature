@@ -49,8 +49,11 @@ Feature: In the Blibli website select the store fresh search for the product kiw
       | 668e25b8135a6f65270aab4b |
 
   @ThankYouMessage
-  Scenario: After placing the order the user will see a thank you message
-    When The user completes the payment
+  Scenario Outline: After placing the order the user will see a thank you message
+    When The user completes the payment "<orderid>"
     Then Validate the thank you message
+    Examples:
+      | orderid     |
+      | 27007780990 |
 
 
